@@ -1,67 +1,3 @@
-// import { create } from "zustand";
-// import { createClient } from "@/lib/supabase/client";
-// import type { User } from "@/types";
-
-// interface AuthState {
-//   user: User | null;
-//   loading: boolean;
-//   signIn: (email: string, password: string) => Promise<void>;
-//   signUp: (email: string, password: string) => Promise<void>;
-//   signOut: () => Promise<void>;
-//   checkSession: () => Promise<void>;
-// }
-
-// export const useAuthStore = create<AuthState>((set) => ({
-//   user: null,
-//   loading: true,
-
-//   signIn: async (email: string, password: string) => {
-//     const supabase = createClient();
-//     const { data, error } = await supabase.auth.signInWithPassword({
-//       email,
-//       password,
-//     });
-
-//     if (error) throw error;
-//     if (data.user) {
-//       set({ user: { id: data.user.id, email: data.user.email! } });
-//     }
-//   },
-
-//   signUp: async (email: string, password: string) => {
-//     const supabase = createClient();
-//     const { data, error } = await supabase.auth.signUp({
-//       email,
-//       password,
-//     });
-
-//     if (error) throw error;
-//     if (data.user) {
-//       set({ user: { id: data.user.id, email: data.user.email! } });
-//     }
-//   },
-
-//   signOut: async () => {
-//     const supabase = createClient();
-//     await supabase.auth.signOut();
-//     set({ user: null });
-//   },
-
-//   checkSession: async () => {
-//     set({ loading: true });
-//     const supabase = createClient();
-//     const {
-//       data: { user },
-//     } = await supabase.auth.getUser();
-
-//     if (user) {
-//       set({ user: { id: user.id, email: user.email! }, loading: false });
-//     } else {
-//       set({ user: null, loading: false });
-//     }
-//   },
-// }));
-
 import { create } from "zustand";
 import type { User } from "@/types";
 
@@ -80,7 +16,10 @@ const MOCK_USER = {
   email: "test@example.com",
 };
 
-export const useAuthStore = create<AuthState>((set) => ({
+// セッション情報を保存するキー
+const SESSION_KEY = "mock_auth_session";
+
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   loading: true,
 
@@ -93,23 +32,17 @@ export const useAuthStore = create<AuthState>((set) => ({
       throw new Error("メールアドレスとパスワードを入力してください");
     }
 
-    // 実際のSupabase実装の場合はここをアンコメント
-    /*
-    const supabase = createClient()
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    })
-    
-    if (error) throw error
-    if (data.user) {
-      set({ user: { id: data.user.id, email: data.user.email! } })
-    }
-    */
-
     // モック実装：1秒待機してログイン成功
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    set({ user: { ...MOCK_USER, email } });
+
+    const user = { ...MOCK_USER, email };
+
+    // セッション情報を保存（開発用）
+    if (typeof window !== "undefined") {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+    }
+
+    set({ user });
   },
 
   signUp: async (email: string, password: string) => {
@@ -126,17 +59,24 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     // モック実装：1秒待機して登録成功
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    set({ user: { ...MOCK_USER, email } });
+
+    const user = { ...MOCK_USER, email };
+
+    // セッション情報を保存（開発用）
+    if (typeof window !== "undefined") {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+    }
+
+    set({ user });
   },
 
   signOut: async () => {
     console.log("Mock sign out");
 
-    // 実際のSupabase実装の場合
-    /*
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    */
+    // セッション情報を削除
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(SESSION_KEY);
+    }
 
     set({ user: null });
   },
@@ -145,20 +85,24 @@ export const useAuthStore = create<AuthState>((set) => ({
     console.log("Mock check session");
     set({ loading: true });
 
-    // 実際のSupabase実装の場合
-    /*
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    
-    if (user) {
-      set({ user: { id: user.id, email: user.email! }, loading: false })
-    } else {
-      set({ user: null, loading: false })
-    }
-    */
-
-    // モック実装：セッションなし
+    // モック実装：保存されたセッション情報を確認
     await new Promise((resolve) => setTimeout(resolve, 500));
+
+    if (typeof window !== "undefined") {
+      try {
+        const savedSession = localStorage.getItem(SESSION_KEY);
+        if (savedSession) {
+          const user = JSON.parse(savedSession);
+          console.log("Session found:", user);
+          set({ user, loading: false });
+          return;
+        }
+      } catch (error) {
+        console.error("Failed to load session:", error);
+      }
+    }
+
+    console.log("No session found");
     set({ user: null, loading: false });
   },
 }));
