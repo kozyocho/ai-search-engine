@@ -13,20 +13,20 @@ import SearchHistory from "@/components/search/SearchHistory";
 export default function DashboardPage() {
   const router = useRouter();
   const { user, checkSession } = useAuthStore();
-  const { results, summary, loadApiKeys, loadHistory } = useSearchStore();
+  const { results, loadApiKeys, loadHistory } = useSearchStore();
 
   useEffect(() => {
     checkSession().then(() => {
       if (!user) router.push("/login");
     });
-  }, []);
+  }, [checkSession, user, router]);
 
   useEffect(() => {
     if (user) {
       loadApiKeys();
       loadHistory();
     }
-  }, [user]);
+  }, [user, loadApiKeys, loadHistory]);
 
   if (!user) return null;
 

@@ -39,7 +39,11 @@ export default function LoginPage() {
           AI統合検索エンジン
         </h1>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-6"
+          suppressHydrationWarning
+        >
           <div>
             <label
               htmlFor="email"
@@ -47,6 +51,7 @@ export default function LoginPage() {
             >
               メールアドレス
             </label>
+            {/* input にも suppressHydrationWarning を追加 */}
             <input
               id="email"
               type="email"
@@ -55,6 +60,7 @@ export default function LoginPage() {
               className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
               placeholder="user@example.com"
               required
+              suppressHydrationWarning
             />
           </div>
 
@@ -65,6 +71,7 @@ export default function LoginPage() {
             >
               パスワード
             </label>
+            {/* password input にも suppressHydrationWarning を追加 */}
             <input
               id="password"
               type="password"
@@ -73,6 +80,7 @@ export default function LoginPage() {
               className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
               placeholder="••••••••"
               required
+              suppressHydrationWarning
             />
           </div>
 

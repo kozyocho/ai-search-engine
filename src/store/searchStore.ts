@@ -108,7 +108,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
     // ChatGPTで要約を生成
     if (apiKeys.openai) {
       try {
-        const openai = AI_PROVIDERS.openai as any;
+        const openai = AI_PROVIDERS.openai;
         const responses = Object.values(newResults)
           .filter((r) => !r.error)
           .map((r) => ({
@@ -116,7 +116,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
             content: r.content,
           }));
 
-        const summary = await openai.summarize(responses, apiKeys.openai);
+        const summary = openai.summarize ? await openai.summarize(responses, apiKeys.openai) : "";
         set({ summary });
       } catch (error) {
         console.error("Summary generation failed:", error);
