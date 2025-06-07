@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import { useSearchStore } from "@/store/searchStore";
@@ -14,21 +14,50 @@ export default function DashboardPage() {
   const router = useRouter();
   const { user, checkSession } = useAuthStore();
   const { results, loadApiKeys, loadHistory } = useSearchStore();
+  const [isInitialized, setIsInitialized] = useState(false);
 
+  // 初回マウント時のみセッションチェック
   useEffect(() => {
-    checkSession().then(() => {
-      if (!user) router.push("/login");
-    });
-  }, [checkSession, user, router]);
+    const initializeAuth = async () => {
+      await checkSession();
+      setIsInitialized(true);
+    };
 
+    initializeAuth();
+  }, []); // 空の依存配列で初回のみ実行
+
+  // ユーザー状態の監視とリダイレクト
   useEffect(() => {
-    if (user) {
+    if (isInitialized && !user) {
+      router.push("/login");
+    }
+  }, [isInitialized, user, router]);
+
+  // ユーザーがログインしたらデータを読み込む
+  useEffect(() => {
+    if (user && isInitialized) {
+      // 関数を直接呼び出す
       loadApiKeys();
       loadHistory();
     }
-  }, [user, loadApiKeys, loadHistory]);
+  }, [user, isInitialized]); // 関数は依存配列に含めない
 
-  if (!user) return null;
+  // 初期化中のローディング表示
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-gray-400">読み込み中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ユーザーがいない場合
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white">

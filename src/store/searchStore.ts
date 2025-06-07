@@ -40,26 +40,42 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   },
 
   setApiKey: async (aiId, key) => {
-    const encryptedKey = await SecureStorage.encrypt(key, "user-password");
-    localStorage.setItem(`apiKey_${aiId}`, encryptedKey);
-    set((state) => ({
-      apiKeys: { ...state.apiKeys, [aiId]: key },
-    }));
+    try {
+      const encryptedKey = await SecureStorage.encrypt(key, "user-password");
+      if (typeof window !== "undefined") {
+        localStorage.setItem(`apiKey_${aiId}`, encryptedKey);
+      }
+      set((state) => ({
+        apiKeys: { ...state.apiKeys, [aiId]: key },
+      }));
+    } catch (error) {
+      console.error("Failed to save API key:", error);
+    }
   },
 
   loadApiKeys: async () => {
-    const keys: Record<string, string> = {};
-    for (const aiId in AI_PROVIDERS) {
-      const encrypted = localStorage.getItem(`apiKey_${aiId}`);
-      if (encrypted) {
-        const decrypted = await SecureStorage.decrypt(
-          encrypted,
-          "user-password"
-        );
-        if (decrypted) keys[aiId] = decrypted;
+    try {
+      if (typeof window === "undefined") return;
+
+      const keys: Record<string, string> = {};
+      for (const aiId in AI_PROVIDERS) {
+        try {
+          const encrypted = localStorage.getItem(`apiKey_${aiId}`);
+          if (encrypted) {
+            const decrypted = await SecureStorage.decrypt(
+              encrypted,
+              "user-password"
+            );
+            if (decrypted) keys[aiId] = decrypted;
+          }
+        } catch (error) {
+          console.error(`Failed to load API key for ${aiId}:`, error);
+        }
       }
+      set({ apiKeys: keys });
+    } catch (error) {
+      console.error("Failed to load API keys:", error);
     }
-    set({ apiKeys: keys });
   },
 
   search: async () => {
@@ -68,45 +84,51 @@ export const useSearchStore = create<SearchState>((set, get) => ({
 
     set({ isLoading: true, results: {}, summary: "" });
 
-    const newResults: Record<string, AIResponse> = {};
+    try {
+      const newResults: Record<string, AIResponse> = {};
 
-    // 各AIに並列でリクエストを送信
-    const promises = selectedAIs.map(async (aiId) => {
-      const provider = AI_PROVIDERS[aiId];
-      const apiKey = apiKeys[aiId];
+      // 各AIに並列でリクエストを送信
+      const promises = selectedAIs.map(async (aiId) => {
+        const provider = AI_PROVIDERS[aiId];
 
-      if (!provider || !apiKey) {
-        newResults[aiId] = {
-          aiId,
-          content: "APIキーが設定されていません",
-          timestamp: new Date().toISOString(),
-          error: "Missing API key",
-        };
-        return;
-      }
+        // APIキーのチェックを一時的にスキップ（モック実装のため）
+        const apiKey = apiKeys[aiId] || "mock-api-key";
 
-      try {
-        const content = await provider.search(query, apiKey);
-        newResults[aiId] = {
-          aiId,
-          content,
-          timestamp: new Date().toISOString(),
-        };
-      } catch (error) {
-        newResults[aiId] = {
-          aiId,
-          content: "エラーが発生しました",
-          timestamp: new Date().toISOString(),
-          error: error instanceof Error ? error.message : "Unknown error",
-        };
-      }
-    });
+        if (!provider) {
+          newResults[aiId] = {
+            aiId,
+            content: "プロバイダーが見つかりません",
+            timestamp: new Date().toISOString(),
+            error: "Provider not found",
+          };
+          return;
+        }
 
-    await Promise.all(promises);
-    set({ results: newResults });
+        try {
+          const content = await provider.search(query, apiKey);
+          newResults[aiId] = {
+            aiId,
+            content,
+            timestamp: new Date().toISOString(),
+          };
+        } catch (error) {
+          newResults[aiId] = {
+            aiId,
+            content: "エラーが発生しました",
+            timestamp: new Date().toISOString(),
+            error: error instanceof Error ? error.message : "Unknown error",
+          };
+        }
 
-    // ChatGPTで要約を生成
-    if (apiKeys.openai) {
+        // 結果を逐次更新
+        set((state) => ({
+          results: { ...state.results, [aiId]: newResults[aiId] },
+        }));
+      });
+
+      await Promise.all(promises);
+
+      // モック要約を生成
       try {
         const openai = AI_PROVIDERS.openai;
         const responses = Object.values(newResults)
@@ -116,34 +138,56 @@ export const useSearchStore = create<SearchState>((set, get) => ({
             content: r.content,
           }));
 
-        const summary = openai.summarize ? await openai.summarize(responses, apiKeys.openai) : "";
-        set({ summary });
+        if (responses.length > 0 && openai.summarize) {
+          const apiKey = apiKeys.openai || "mock-api-key";
+          const summary = await openai.summarize(responses, apiKey);
+          set({ summary });
+        }
       } catch (error) {
         console.error("Summary generation failed:", error);
       }
+
+      // 履歴に保存
+      const newEntry: SearchResult = {
+        id: Date.now().toString(),
+        query,
+        responses: Object.values(newResults),
+        summary: get().summary,
+        createdAt: new Date().toISOString(),
+      };
+
+      const updatedHistory = [newEntry, ...get().history].slice(0, 50);
+      set({ history: updatedHistory });
+
+      // ローカルストレージに保存
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("searchHistory", JSON.stringify(updatedHistory));
+        } catch (error) {
+          console.error("Failed to save history:", error);
+        }
+      }
+    } catch (error) {
+      console.error("Search error:", error);
+    } finally {
+      set({ isLoading: false });
     }
-
-    set({ isLoading: false });
-
-    // 履歴に保存
-    const { history } = get();
-    const newEntry: SearchResult = {
-      id: Date.now().toString(),
-      query,
-      responses: Object.values(newResults),
-      summary: get().summary,
-      createdAt: new Date().toISOString(),
-    };
-    set({ history: [newEntry, ...history].slice(0, 50) });
-
-    // ローカルストレージに保存
-    localStorage.setItem("searchHistory", JSON.stringify(get().history));
   },
 
   loadHistory: async () => {
-    const saved = localStorage.getItem("searchHistory");
-    if (saved) {
-      set({ history: JSON.parse(saved) });
+    try {
+      if (typeof window === "undefined") return;
+
+      const saved = localStorage.getItem("searchHistory");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          set({ history: parsed });
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load history:", error);
+      set({ history: [] });
     }
   },
 }));
