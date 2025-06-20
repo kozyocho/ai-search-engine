@@ -192,6 +192,28 @@ export default function SettingsPage() {
                               </ol>
                             </div>
                           )}
+
+                          {ai.id === "claude" && (
+                            <div className="text-xs text-gray-500 space-y-1">
+                              <p>取得方法:</p>
+                              <ol className="list-decimal list-inside space-y-1 ml-2">
+                                <li>
+                                  <a
+                                    href="https://console.anthropic.com/"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-400 hover:underline"
+                                  >
+                                    Anthropic Console
+                                  </a>
+                                  にアクセス
+                                </li>
+                                <li>「API Keys」セクションに移動</li>
+                                <li>「Create Key」をクリック</li>
+                                <li>生成されたキーをコピーして貼り付け</li>
+                              </ol>
+                            </div>
+                          )}
                         </div>
                       </>
                     )}

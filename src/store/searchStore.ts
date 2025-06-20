@@ -22,7 +22,7 @@ interface SearchState {
 
 export const useSearchStore = create<SearchState>((set, get) => ({
   query: "",
-  selectedAIs: ["openai", "gemini"],
+  selectedAIs: ["openai", "gemini", "claude"],
   results: {},
   summary: "",
   isLoading: false,
@@ -128,9 +128,8 @@ export const useSearchStore = create<SearchState>((set, get) => ({
 
       await Promise.all(promises);
 
-      // モック要約を生成
+      // 要約を生成（利用可能なAPIキーを持つプロバイダーを使用）
       try {
-        const openai = AI_PROVIDERS.openai;
         const responses = Object.values(newResults)
           .filter((r) => !r.error)
           .map((r) => ({
@@ -138,13 +137,47 @@ export const useSearchStore = create<SearchState>((set, get) => ({
             content: r.content,
           }));
 
-        if (responses.length > 0 && openai.summarize) {
-          const apiKey = apiKeys.openai || "mock-api-key";
-          const summary = await openai.summarize(responses, apiKey);
-          set({ summary });
+        if (responses.length > 0) {
+          let summary = "";
+
+          // OpenAI、Claude、Geminiの順で要約を試行
+          const summarizeProviders = ["openai", "claude", "gemini"];
+
+          for (const providerId of summarizeProviders) {
+            const provider = AI_PROVIDERS[providerId];
+            const apiKey = apiKeys[providerId];
+
+            if (
+              provider &&
+              apiKey &&
+              apiKey !== "mock-api-key" &&
+              provider.summarize
+            ) {
+              try {
+                summary = await provider.summarize(responses, apiKey);
+                break; // 成功したらループを抜ける
+              } catch (error) {
+                console.error(
+                  `Summary generation failed with ${providerId}:`,
+                  error
+                );
+                continue; // 次のプロバイダーを試す
+              }
+            }
+          }
+
+          if (summary) {
+            set({ summary });
+          } else {
+            set({
+              summary:
+                "要約を生成するには、OpenAI、Claude、またはGeminiのAPIキーが必要です。",
+            });
+          }
         }
       } catch (error) {
         console.error("Summary generation failed:", error);
+        set({ summary: "要約の生成中にエラーが発生しました。" });
       }
 
       // 履歴に保存

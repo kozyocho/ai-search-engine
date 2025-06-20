@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "ai-search-engine-supabase": {
+      "command": "node",
+      "args": ["./mcp-servers/supabase-server.js"],
+      "env": {
+        "NODE_ENV": "development"
+      }
+    },
+    "supabase": {
+      "command": "/Users/shoheiyamasaki/projects/ai-search-engine/mcp-supabase/venv/bin/supabase-mcp-server",
+      "env": {
+        "QUERY_API_KEY": "",
+        "SUPABASE_PROJECT_REF": "127.0.0.1:54322",
+        "SUPABASE_DB_PASSWORD": "postgres",
+        "SUPABASE_REGION": "us-east-1"
+      }
+    }
+  }
+}

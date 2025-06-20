@@ -87,9 +87,7 @@ export default function SearchResults() {
       {summary && (
         <div className="bg-gradient-to-r from-blue-900 to-purple-900 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-white">
-              ChatGPTによる統合要約
-            </h2>
+            <h2 className="text-2xl font-bold text-white">AI統合要約</h2>
             <button
               onClick={() => handleCopy(summary, "summary")}
               className="p-2 hover:bg-white hover:bg-opacity-10 rounded transition-colors"
